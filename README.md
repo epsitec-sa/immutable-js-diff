@@ -2,6 +2,14 @@
 
 Create RFC 6902 style patches between Immutable.JS data structures, such as `Maps`, `Lists`, and `Sets`.
 
+## Differences from original
+Signature of diff function is
+``` javascript
+function diff(a, b, p, s)
+```
+where if s = true, then sequence diffs are ignored and a single block is generated.  
+This can be usefull as an optimization.
+
 ## Getting Started
 
 Install `immutablediff` using npm or yarn:
