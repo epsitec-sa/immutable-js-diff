@@ -9,6 +9,10 @@ function diff(a, b, p, s)
 ```
 where if s = true, then sequence diffs are ignored and a single block is generated.  
 This can be usefull as an optimization.
+If s is a string (identification key of all elements), an additional optimization will be performed, 
+detecting if all elements of a list have changed (in this case a complete change),
+or just some elements (in this case a granular diff)
+
 
 ## Getting Started
 
