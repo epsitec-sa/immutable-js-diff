@@ -68,6 +68,26 @@ var mapDiff = function (a, b, p, s) {
   return ops;
 };
 
+function _areSameLists (list1, list2, identification) {
+  if (list1.size !== list2.size) {
+    return false;
+  }
+
+  return (
+    list1
+      .zipWith ((c, n) => {
+        return Immutable.Map (
+          Immutable.fromJS ({
+            c: c.get (identification),
+            n: n.get (identification),
+          })
+        );
+      }, list2)
+      .filter (i => i.get ('c') !== i.get ('n'))
+      .toJS ().length === 0
+  );
+}
+
 var sequenceDiff = function (a, b, p, s) {
   var ops = [];
   var path = p || '';
@@ -76,41 +96,65 @@ var sequenceDiff = function (a, b, p, s) {
   }
 
   if (s) {
-    // ignore sequence diffs
-    ops.push (op ('replace', path, b));
-  } else {
-    if ((a.count () + 1) * (b.count () + 1) >= 10000) {
-      return mapDiff (a, b, p, s);
-    }
-
-    var lcsDiff = lcs.diff (a, b);
-
-    var pathIndex = 0;
-
-    lcsDiff.forEach (function (diff) {
-      if (diff.op === '=') {
-        pathIndex++;
-      } else if (diff.op === '!=') {
-        if (isMap (diff.val) && isMap (diff.newVal)) {
-          var mapDiffs = mapDiff (
-            diff.val,
-            diff.newVal,
-            concatPath (path, pathIndex),
-            s
-          );
-          ops = ops.concat (mapDiffs);
-        } else {
-          ops.push (op ('replace', concatPath (path, pathIndex), diff.newVal));
-        }
-        pathIndex++;
-      } else if (diff.op === '+') {
-        ops.push (op ('add', concatPath (path, pathIndex), diff.val));
-        pathIndex++;
-      } else if (diff.op === '-') {
-        ops.push (op ('remove', concatPath (path, pathIndex)));
+    if (typeof s === 'string') {
+      // elements identification
+      if (_areSameLists (a, b, s)) {
+        // elements have been modified, therefore a granular diff
+        return _granularSequenceDiff (a, b, p, s);
+      } else {
+        // lists are completely different, so more optimized to ignore sequence diffs
+        ops.push (op ('replace', path, b));
       }
-    });
+    } else {
+      // bool
+      // ignore sequence diffs
+      ops.push (op ('replace', path, b));
+    }
+  } else {
+    return _granularSequenceDiff (a, b, p, s);
   }
+
+  return ops;
+};
+
+var _granularSequenceDiff = function (a, b, p, s) {
+  var ops = [];
+  var path = p || '';
+  if (Immutable.is (a, b) || a == b == null) {
+    return ops;
+  }
+
+  if ((a.count () + 1) * (b.count () + 1) >= 10000) {
+    return mapDiff (a, b, p, s);
+  }
+
+  var lcsDiff = lcs.diff (a, b);
+
+  var pathIndex = 0;
+
+  lcsDiff.forEach (function (diff) {
+    if (diff.op === '=') {
+      pathIndex++;
+    } else if (diff.op === '!=') {
+      if (isMap (diff.val) && isMap (diff.newVal)) {
+        var mapDiffs = mapDiff (
+          diff.val,
+          diff.newVal,
+          concatPath (path, pathIndex),
+          s
+        );
+        ops = ops.concat (mapDiffs);
+      } else {
+        ops.push (op ('replace', concatPath (path, pathIndex), diff.newVal));
+      }
+      pathIndex++;
+    } else if (diff.op === '+') {
+      ops.push (op ('add', concatPath (path, pathIndex), diff.val));
+      pathIndex++;
+    } else if (diff.op === '-') {
+      ops.push (op ('remove', concatPath (path, pathIndex)));
+    }
+  });
 
   return ops;
 };
@@ -125,6 +169,9 @@ var primitiveTypeDiff = function (a, b, p) {
 };
 
 // s: if true, ignores sequence diffs
+// s: if a string, an additional optimization will be computed, detecting
+// if all elements of a list have changed (in this case a complete change),
+// or just some elements (in this case a granular diff)
 var diff = function (a, b, p, s) {
   if (Immutable.is (a, b)) {
     return Immutable.List ();
