@@ -73,19 +73,16 @@ function _areSameLists (list1, list2, identification) {
     return false;
   }
 
-  return (
-    list1
-      .zipWith ((c, n) => {
-        return Immutable.Map (
-          Immutable.fromJS ({
-            c: c.get (identification),
-            n: n.get (identification),
-          })
-        );
-      }, list2)
-      .filter (i => i.get ('c') !== i.get ('n'))
-      .toJS ().length === 0
-  );
+  for (let index = 0; index < list1.size; index++) {
+    if (
+      list1.get (index).get (identification) !==
+      list2.get (index).get (identification)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 var sequenceDiff = function (a, b, p, s) {
