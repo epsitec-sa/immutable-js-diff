@@ -73,6 +73,11 @@ function _areSameLists (list1, list2, identification) {
     return false;
   }
 
+  if (list1.size > 0 && !Immutable.Iterable.isIterable (list1.get (0))) {
+    // Lists of primitive values, we don't want a granular diff
+    return false;
+  }
+  
   for (let index = 0; index < list1.size; index++) {
     if (
       list1.get (index).get (identification) !==
